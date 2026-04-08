@@ -108,7 +108,11 @@ pub fn draw_dashboard(f: &mut Frame, app: &mut App, area: Rect) {
     let state = app.app_state.lock().unwrap();
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(10), Constraint::Length(6)]) // services vs logs
+        .constraints([
+            Constraint::Length(10),  // service cards
+            Constraint::Min(6),     // redis streams overview
+            Constraint::Length(6),  // logs
+        ])
         .split(area);
 
     app.panel_areas = chunks.to_vec();
@@ -183,6 +187,84 @@ pub fn draw_dashboard(f: &mut Frame, app: &mut App, area: Rect) {
     ];
     f.render_widget(Paragraph::new(mongo_text).block(Block::default().borders(Borders::ALL).title(mongo_title).border_style(get_border_style(app.active_panel == 0))), top_row[3]);
 
+    // 5. Redis Streams Overview
+    let stream_count = state.redis_streams.len();
+    let total_entries: usize = state.redis_stream_entries.values().map(|e| e.len()).sum();
+    let streams_title = Line::from(vec![
+        Span::styled("Redis Streams ", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
+        Span::styled(format!("({} streams, {} entries)", stream_count, total_entries), Style::default().fg(Color::DarkGray)),
+    ]);
+
+    let streams_block = Block::default()
+        .borders(Borders::ALL)
+        .title(streams_title)
+        .border_style(get_border_style(app.active_panel == 1));
+
+    let streams_inner = streams_block.inner(chunks[1]);
+    f.render_widget(streams_block, chunks[1]);
+
+    if state.redis_streams.is_empty() {
+        let empty_msg = Paragraph::new(
+            Line::from(vec![
+                Span::styled("No streams discovered. ", Style::default().fg(Color::DarkGray)),
+                Span::styled("Streams will appear here when Redis is online.", Style::default().fg(Color::DarkGray)),
+            ])
+        );
+        f.render_widget(empty_msg, streams_inner);
+    } else {
+        // Split the streams area into a summary header + stream list
+        let streams_layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Length(1), Constraint::Min(1)])
+            .split(streams_inner);
+
+        // Header row
+        let header = Line::from(vec![
+            Span::styled(" Stream Name", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::raw("                              "),
+            Span::styled("Entries", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::raw("     "),
+            Span::styled("Latest Entry", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        ]);
+        f.render_widget(Paragraph::new(header), streams_layout[0]);
+
+        // Stream rows
+        let mut stream_lines: Vec<Line> = Vec::new();
+        for stream_name in &state.redis_streams {
+            let entries = state.redis_stream_entries.get(stream_name);
+            let entry_count = entries.map_or(0, |e| e.len());
+            let latest = entries
+                .and_then(|e| e.last())
+                .map(|e| {
+                    if e.len() > 50 { format!("{}…", &e[..50]) } else { e.clone() }
+                })
+                .unwrap_or_else(|| "—".to_string());
+
+            // Color-code entry count
+            let count_color = if entry_count == 0 {
+                Color::DarkGray
+            } else if entry_count < 100 {
+                Color::Green
+            } else {
+                Color::Yellow
+            };
+
+            stream_lines.push(Line::from(vec![
+                Span::styled(" ▸ ", Style::default().fg(Color::Magenta)),
+                Span::styled(
+                    format!("{:<30}", stream_name),
+                    Style::default().fg(Color::White),
+                ),
+                Span::styled(
+                    format!("{:<8}", entry_count),
+                    Style::default().fg(count_color),
+                ),
+                Span::styled(latest, Style::default().fg(Color::DarkGray)),
+            ]));
+        }
+        f.render_widget(Paragraph::new(stream_lines), streams_layout[1]);
+    }
+
     // Logs
     let logs_text = if state.logs.is_empty() {
         "No logs yet. Logs will appear here...".to_string()
@@ -193,8 +275,8 @@ pub fn draw_dashboard(f: &mut Frame, app: &mut App, area: Rect) {
         .block(Block::default()
             .title(Span::styled("Logs", Style::default().fg(Color::Cyan)))
             .borders(Borders::ALL)
-            .border_style(get_border_style(app.active_panel == 1)));
-    f.render_widget(log_view, chunks[1]);
+            .border_style(get_border_style(app.active_panel == 2)));
+    f.render_widget(log_view, chunks[2]);
 }
 
 pub fn draw_redis_explorer(f: &mut Frame, app: &mut App, area: Rect) {
