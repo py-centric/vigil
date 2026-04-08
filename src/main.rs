@@ -1,7 +1,5 @@
-use std::io;
 
 use anyhow::Result;
-use clap::Parser;
 use fluxt_tace::config::Config;
 use fluxt_tace::tui;
 use fluxt_tace::tui::app::App;
@@ -34,7 +32,7 @@ async fn main() -> Result<()> {
 }
 
 /// Sets up non-blocking file logging based on the current timestamp
-fn setup_logging(config: &Config) -> Result<WorkerGuard> {
+fn setup_logging(_config: &Config) -> Result<WorkerGuard> {
     let now = chrono::Local::now();
     let log_filename = format!("flux_trace_{}.log", now.format("%Y%m%d_%H%M%S"));
     

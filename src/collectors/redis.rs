@@ -32,7 +32,7 @@ pub fn start_redis_collector(uri: String, state: Arc<Mutex<AppState>>) {
 async fn fetch_all(uri: &str, state: &Arc<Mutex<AppState>>) -> anyhow::Result<()> {
     tracing::debug!("Redis: connecting to {}", uri);
     let client = redis::Client::open(uri)?;
-    let mut con = tokio::time::timeout(Duration::from_secs(5), client.get_tokio_connection())
+    let mut con = tokio::time::timeout(Duration::from_secs(5), client.get_multiplexed_tokio_connection())
         .await
         .map_err(|_| anyhow::anyhow!("Timeout connecting to Redis"))??;
 
