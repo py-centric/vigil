@@ -47,7 +47,7 @@ pub fn draw_main(f: &mut Frame, app: &mut App) {
     let tabs = Tabs::new(titles)
         .select(tab_index)
         .divider(" | ") // Explicitly set divider to 3 chars
-        .block(Block::default().borders(Borders::ALL).title("Flux-Trace"))
+        .block(Block::default().borders(Borders::ALL).title("Vigil"))
         .highlight_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
     f.render_widget(tabs, chunks[0]);
 

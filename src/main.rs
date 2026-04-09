@@ -1,8 +1,8 @@
 
 use anyhow::Result;
-use fluxt_tace::config::Config;
-use fluxt_tace::tui;
-use fluxt_tace::tui::app::App;
+use vigil::config::Config;
+use vigil::tui;
+use vigil::tui::app::App;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::{fmt, EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -14,7 +14,7 @@ async fn main() -> Result<()> {
     // Setup logging
     let _guard = setup_logging(&config)?;
 
-    tracing::info!("Starting Flux-Trace...");
+    tracing::info!("Starting Vigil...");
 
     // TUI setup
     let mut terminal = tui::init()?;
@@ -25,7 +25,7 @@ async fn main() -> Result<()> {
     tui::restore()?;
 
     if let Err(e) = res {
-        eprintln!("Error running Flux-Trace: {:?}", e);
+        eprintln!("Error running Vigil: {:?}", e);
     }
 
     Ok(())
@@ -34,9 +34,9 @@ async fn main() -> Result<()> {
 /// Sets up non-blocking file logging based on the current timestamp
 fn setup_logging(_config: &Config) -> Result<WorkerGuard> {
     let now = chrono::Local::now();
-    let log_filename = format!("flux_trace_{}.log", now.format("%Y%m%d_%H%M%S"));
+    let log_filename = format!("vigil_{}.log", now.format("%Y%m%d_%H%M%S"));
     
-    let log_dir = std::path::Path::new("/tmp/flux_trace");
+    let log_dir = std::path::Path::new("/tmp/vigil");
     std::fs::create_dir_all(log_dir).ok();
     
     // We only log to a file, omitting colored ANSI codes to keep the log clean

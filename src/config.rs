@@ -10,7 +10,7 @@ pub struct AppConfig {
     pub rabbitmq: Option<String>,
 }
 
-/// Flux-Trace: Terminal-based observability tool for monitoring distributed systems locally.
+/// Vigil: Terminal-based observability tool for monitoring distributed systems locally.
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
 pub struct CliArgs {

@@ -1,5 +1,5 @@
 [package]
-name = "fluxt-tace"
+name = "vigil"
 version = "0.1.0"
 edition = "2021"
 description = "A terminal-based observability tool for monitoring distributed systems locally."
