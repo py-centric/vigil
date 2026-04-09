@@ -231,9 +231,10 @@ impl App {
 
     fn panel_count(&self) -> usize {
         match self.mode {
+            ViewMode::Dashboard => 6,
             ViewMode::MongoExplorer | ViewMode::RedisExplorer => 3,
             ViewMode::RedisStreams | ViewMode::KafkaViewer | ViewMode::RabbitMQViewer => 2,
-            ViewMode::Dashboard | ViewMode::Topology | ViewMode::Gantt => 1,
+            ViewMode::Topology | ViewMode::Gantt => 1,
         }
     }
 

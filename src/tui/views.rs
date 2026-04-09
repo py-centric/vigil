@@ -106,26 +106,37 @@ fn center(r: Rect, percent_x: u16, percent_y: u16) -> Rect {
 
 pub fn draw_dashboard(f: &mut Frame, app: &mut App, area: Rect) {
     let state = app.app_state.lock().unwrap();
-    let chunks = Layout::default()
+
+    let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(10),  // service cards
-            Constraint::Min(6),     // redis streams overview
-            Constraint::Length(6),  // logs
+            Constraint::Percentage(50),
+            Constraint::Percentage(50),
         ])
         .split(area);
-
-    app.panel_areas = chunks.to_vec();
 
     let top_row = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Percentage(25),
-            Constraint::Percentage(25),
-            Constraint::Percentage(25),
-            Constraint::Percentage(25),
+            Constraint::Percentage(33),
+            Constraint::Percentage(33),
+            Constraint::Percentage(34),
         ])
-        .split(chunks[0]);
+        .split(rows[0]);
+
+    let bottom_row = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(33),
+            Constraint::Percentage(33),
+            Constraint::Percentage(34),
+        ])
+        .split(rows[1]);
+
+    app.panel_areas = vec![
+        top_row[0], top_row[1], top_row[2],
+        bottom_row[0], bottom_row[1], bottom_row[2],
+    ];
 
     // 1. Kafka
     let kafka_title = Line::from(vec![Span::styled("Kafka ", Style::default().fg(Color::Cyan)), Span::raw("localhost:9092")]);
@@ -162,7 +173,7 @@ pub fn draw_dashboard(f: &mut Frame, app: &mut App, area: Rect) {
         Line::from(vec![Span::raw("Keys: "), Span::styled(total_keys.to_string(), Style::default().fg(Color::Yellow))]),
         Line::from(vec![Span::raw("Memory: "), Span::styled(&state.redis_mem, Style::default().fg(Color::Yellow))]),
     ];
-    f.render_widget(Paragraph::new(redis_text).block(Block::default().borders(Borders::ALL).title(redis_title).border_style(get_border_style(app.active_panel == 0))), top_row[1]);
+    f.render_widget(Paragraph::new(redis_text).block(Block::default().borders(Borders::ALL).title(redis_title).border_style(get_border_style(app.active_panel == 1))), top_row[1]);
 
     // 3. RabbitMQ
     let rabbit_title = Line::from(vec![Span::styled("RabbitMQ ", Style::default().fg(Color::Cyan)), Span::raw("localhost:5672")]);
@@ -173,7 +184,7 @@ pub fn draw_dashboard(f: &mut Frame, app: &mut App, area: Rect) {
         Line::from(vec![Span::raw("Msgs: "), Span::styled("225", Style::default().fg(Color::Yellow))]),
         Line::from(vec![Span::raw("Consumers: "), Span::styled("3", Style::default().fg(Color::Yellow))]),
     ];
-    f.render_widget(Paragraph::new(rabbit_text).block(Block::default().borders(Borders::ALL).title(rabbit_title).border_style(get_border_style(app.active_panel == 0))), top_row[2]);
+    f.render_widget(Paragraph::new(rabbit_text).block(Block::default().borders(Borders::ALL).title(rabbit_title).border_style(get_border_style(app.active_panel == 2))), top_row[2]);
 
     // 4. MongoDB
     let mongo_title = Line::from(vec![Span::styled("MongoDB ", Style::default().fg(Color::Cyan)), Span::raw("localhost:27017")]);
@@ -185,7 +196,7 @@ pub fn draw_dashboard(f: &mut Frame, app: &mut App, area: Rect) {
         Line::from(vec![Span::raw("Collections: "), Span::styled(mongo_collections.to_string(), Style::default().fg(Color::Yellow))]),
         Line::from(vec![Span::raw("Size: "), Span::styled(&state.mongo_db_size, Style::default().fg(Color::Yellow))]),
     ];
-    f.render_widget(Paragraph::new(mongo_text).block(Block::default().borders(Borders::ALL).title(mongo_title).border_style(get_border_style(app.active_panel == 0))), top_row[3]);
+    f.render_widget(Paragraph::new(mongo_text).block(Block::default().borders(Borders::ALL).title(mongo_title).border_style(get_border_style(app.active_panel == 3))), bottom_row[0]);
 
     // 5. Redis Streams Overview
     let stream_count = state.redis_streams.len();
@@ -198,10 +209,10 @@ pub fn draw_dashboard(f: &mut Frame, app: &mut App, area: Rect) {
     let streams_block = Block::default()
         .borders(Borders::ALL)
         .title(streams_title)
-        .border_style(get_border_style(app.active_panel == 1));
+        .border_style(get_border_style(app.active_panel == 4));
 
-    let streams_inner = streams_block.inner(chunks[1]);
-    f.render_widget(streams_block, chunks[1]);
+    let streams_inner = streams_block.inner(bottom_row[1]);
+    f.render_widget(streams_block, bottom_row[1]);
 
     if state.redis_streams.is_empty() {
         let empty_msg = Paragraph::new(
@@ -265,7 +276,7 @@ pub fn draw_dashboard(f: &mut Frame, app: &mut App, area: Rect) {
         f.render_widget(Paragraph::new(stream_lines), streams_layout[1]);
     }
 
-    // Logs
+    // 6. Logs
     let logs_text = if state.logs.is_empty() {
         "No logs yet. Logs will appear here...".to_string()
     } else {
@@ -275,8 +286,8 @@ pub fn draw_dashboard(f: &mut Frame, app: &mut App, area: Rect) {
         .block(Block::default()
             .title(Span::styled("Logs", Style::default().fg(Color::Cyan)))
             .borders(Borders::ALL)
-            .border_style(get_border_style(app.active_panel == 2)));
-    f.render_widget(log_view, chunks[2]);
+            .border_style(get_border_style(app.active_panel == 5)));
+    f.render_widget(log_view, bottom_row[2]);
 }
 
 pub fn draw_redis_explorer(f: &mut Frame, app: &mut App, area: Rect) {
