@@ -1,0 +1,87 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  version:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      new_version: ${{ steps.bump.outputs.new_version }}
+      release_type: ${{ steps.bump.outputs.release_type }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Determine version bump from conventional commits
+        id: bump
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "last_tag=$LAST_TAG"
+
+          CURRENT_VERSION=$(echo "$LAST_TAG" | sed 's/^v//')
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+
+          COMMITS=$(git log "$LAST_TAG..HEAD" --format="%s" 2>/dev/null || echo "")
+
+          HAS_BREAKING=false
+          HAS_FEAT=false
+          HAS_FIX=false
+
+          while IFS= read -r msg; do
+            case "$msg" in
+              *"BREAKING CHANGE"*|*"!"* ) HAS_BREAKING=true ;;
+              feat:*|feat\(*\):* )        HAS_FEAT=true ;;
+              fix:*|fix\(*\):* )          HAS_FIX=true ;;
+            esac
+          done <<< "$COMMITS"
+
+          if [ "$HAS_BREAKING" = true ]; then
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+            RELEASE_TYPE="major"
+          elif [ "$HAS_FEAT" = true ]; then
+            MINOR=$((MINOR + 1))
+            PATCH=0
+            RELEASE_TYPE="minor"
+          elif [ "$HAS_FIX" = true ]; then
+            PATCH=$((PATCH + 1))
+            RELEASE_TYPE="patch"
+          else
+            echo "No conventional commits found since $LAST_TAG — skipping release"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "release_type=$RELEASE_TYPE" >> "$GITHUB_OUTPUT"
+          echo "Bumping $LAST_TAG -> v$NEW_VERSION ($RELEASE_TYPE)"
+
+      - name: Update Cargo.toml version
+        if: steps.bump.outputs.skip != 'true'
+        run: |
+          NEW_VERSION="${{ steps.bump.outputs.new_version }}"
+          sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
+
+      - name: Commit version bump and tag
+        if: steps.bump.outputs.skip != 'true'
+        run: |
+          NEW_VERSION="${{ steps.bump.outputs.new_version }}"
+          git config user.email "vigil-bot@users.noreply.github.com"
+          git config user.name "Vigil Bot"
+          git add Cargo.toml Cargo.lock
+          git commit -m "chore: release v$NEW_VERSION"
+          git tag "v$NEW_VERSION"
+          git push origin main
+          git push origin "v$NEW_VERSION"
